@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Customer {
+  id     String @id @default(cuid())
+  name   String
+  mobile String @unique
+
+  dob         String?
+  anniversary String?
+  gender      String?
+  address     String?
+
+  stamps      Int   @default(0)
+  totalVisits Int   @default(0)
+  totalSpend  Float @default(0)
+
+  purchases         Purchase[]
+  stampTransactions StampTransaction[]
+  rewardRedemptions RewardRedemption[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Purchase {
+  id String @id @default(cuid())
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  billNumber     String @unique
+  purchaseAmount Float
+  cashierName    String
+
+  stampEarned Boolean @default(false)
+  stampReason String?
+
+  purchaseDate String
+  purchaseTime String
+
+  createdAt DateTime @default(now())
+
+  @@index([customerId])
+  @@index([purchaseDate])
+}
+
+model StampTransaction {
+  id String @id @default(cuid())
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  billNumber     String
+  purchaseAmount Float
+  cashierName    String
+
+  transactionType String
+  transactionDate String
+  transactionTime String
+
+  createdAt DateTime @default(now())
+
+  @@index([customerId])
+  @@index([transactionDate])
+}
+
+model RewardRedemption {
+  id String @id @default(cuid())
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  giftName  String
+  giftValue Float
+
+  redeemedBy String
+
+  stampsUsed Int @default(5)
+
+  redemptionDate String
+  redemptionTime String
+
+  status String @default("Redeemed")
+
+  createdAt DateTime @default(now())
+
+  @@index([customerId])
+  @@index([redemptionDate])
+}
