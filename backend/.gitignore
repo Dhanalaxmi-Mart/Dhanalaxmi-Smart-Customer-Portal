@@ -3,3 +3,24 @@ node_modules
 .env
 
 /generated/prisma
+# Local database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Generated Prisma client
+src/generated/prisma/
+
+# Dependencies
+node_modules/
+
+# Tool-specific folders
+.agents/
+.claude/
+.windsurf/
