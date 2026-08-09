@@ -7,11 +7,42 @@ const {
   setCustomerStamps,
 } = require("../controllers/customer.controller");
 
+const {
+  authenticate,
+  authorize,
+} = require("../middleware/auth.middleware");
+
 const router = express.Router();
 
-router.get("/", getCustomers);
-router.post("/", createCustomer);
-router.put("/:id", updateCustomer);
-router.put("/:id/stamps", setCustomerStamps);
+// All customer routes require a valid JWT
+router.use(authenticate);
+
+// ADMIN and CASHIER can view customers
+router.get(
+  "/",
+  authorize("ADMIN", "CASHIER"),
+  getCustomers
+);
+
+// ADMIN and CASHIER can create customers
+router.post(
+  "/",
+  authorize("ADMIN", "CASHIER"),
+  createCustomer
+);
+
+// Only ADMIN can edit customer details
+router.put(
+  "/:id",
+  authorize("ADMIN"),
+  updateCustomer
+);
+
+// Only ADMIN can manually change stamp balance
+router.put(
+  "/:id/stamps",
+  authorize("ADMIN"),
+  setCustomerStamps
+);
 
 module.exports = router;

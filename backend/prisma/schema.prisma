@@ -94,3 +94,34 @@ model RewardRedemption {
   @@index([customerId])
   @@index([redemptionDate])
 }
+
+enum Role {
+  ADMIN
+  CASHIER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  role      Role     @default(CASHIER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Offer {
+  id          String  @id @default(cuid())
+  title       String
+  description String
+  imageUrl    String?
+  startDate   String
+  endDate     String
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([startDate])
+  @@index([endDate])
+}

@@ -5,9 +5,28 @@ const {
   redeemReward,
 } = require("../controllers/reward.controller");
 
+const {
+  authenticate,
+  authorize,
+} = require("../middleware/auth.middleware");
+
 const router = express.Router();
 
-router.get("/", getRewards);
-router.post("/redeem", redeemReward);
+// All reward routes require login
+router.use(authenticate);
+
+// ADMIN and CASHIER can view reward history
+router.get(
+  "/",
+  authorize("ADMIN", "CASHIER"),
+  getRewards
+);
+
+// ADMIN and CASHIER can redeem an eligible reward
+router.post(
+  "/redeem",
+  authorize("ADMIN", "CASHIER"),
+  redeemReward
+);
 
 module.exports = router;
