@@ -10,13 +10,16 @@ import {
   DialogContent,
   DialogTitle,
   Paper,
+  Stack,
   TextField,
   Typography,
 } from "@mui/material";
 
 import {
   createOffer,
+  deleteOffer,
   getOffers,
+  updateOffer,
 } from "../services/offerApi";
 
 export default function Offers() {
@@ -26,6 +29,13 @@ export default function Offers() {
 
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  /*
+   * null = creating new offer
+   * offer object = editing existing offer
+   */
+  const [editingOffer, setEditingOffer] =
+    useState(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -41,10 +51,15 @@ export default function Offers() {
 
       const response = await getOffers();
 
-      setOffers(response.data.offers || []);
+      setOffers(
+        response.data.offers || []
+      );
     } catch (err) {
       console.error(err);
-      setError("Failed to load offers");
+
+      setError(
+        "Failed to load offers"
+      );
     } finally {
       setLoading(false);
     }
@@ -54,7 +69,12 @@ export default function Offers() {
     loadOffers();
   }, []);
 
+  /*
+   * ADD NEW OFFER
+   */
   const handleOpenDialog = () => {
+    setEditingOffer(null);
+
     setFormData({
       title: "",
       description: "",
@@ -65,12 +85,37 @@ export default function Offers() {
     setOpen(true);
   };
 
-  const handleCloseDialog = () => {
-    if (saving) return;
+  /*
+   * EDIT EXISTING OFFER
+   */
+  const handleEditOffer = (offer) => {
+    setEditingOffer(offer);
 
-    setOpen(false);
+    setFormData({
+      title: offer.title || "",
+      description:
+        offer.description || "",
+      startDate:
+        offer.startDate || "",
+      endDate:
+        offer.endDate || "",
+    });
+
+    setOpen(true);
   };
 
+  const handleCloseDialog = () => {
+    if (saving) {
+      return;
+    }
+
+    setOpen(false);
+    setEditingOffer(null);
+  };
+
+  /*
+   * CREATE OR UPDATE
+   */
   const handleSaveOffer = async () => {
     if (
       !formData.title.trim() ||
@@ -78,11 +123,16 @@ export default function Offers() {
       !formData.startDate ||
       !formData.endDate
     ) {
-      alert("Please fill all fields.");
+      alert(
+        "Please fill all fields."
+      );
       return;
     }
 
-    if (formData.endDate < formData.startDate) {
+    if (
+      formData.endDate <
+      formData.startDate
+    ) {
       alert(
         "End Date cannot be before Start Date."
       );
@@ -92,16 +142,40 @@ export default function Offers() {
     try {
       setSaving(true);
 
-      await createOffer({
-        title: formData.title.trim(),
+      const data = {
+        title:
+          formData.title.trim(),
+
         description:
           formData.description.trim(),
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        imageUrl: null,
-      });
+
+        startDate:
+          formData.startDate,
+
+        endDate:
+          formData.endDate,
+      };
+
+      if (editingOffer) {
+        /*
+         * UPDATE EXISTING OFFER
+         */
+        await updateOffer(
+          editingOffer.id,
+          data
+        );
+      } else {
+        /*
+         * CREATE NEW OFFER
+         */
+        await createOffer({
+          ...data,
+          imageUrl: null,
+        });
+      }
 
       setOpen(false);
+      setEditingOffer(null);
 
       setFormData({
         title: "",
@@ -115,7 +189,8 @@ export default function Offers() {
       console.error(err);
 
       alert(
-        err?.response?.data?.message ||
+        err?.response?.data
+          ?.message ||
           "Failed to save offer."
       );
     } finally {
@@ -123,16 +198,80 @@ export default function Offers() {
     }
   };
 
-  const formatDate = (dateValue) => {
-    if (!dateValue) return "-";
+  /*
+   * ACTIVE / INACTIVE
+   */
+  const handleToggleStatus =
+    async (offer) => {
+      try {
+        await updateOffer(
+          offer.id,
+          {
+            isActive:
+              !offer.isActive,
+          }
+        );
+
+        await loadOffers();
+      } catch (err) {
+        console.error(err);
+
+        alert(
+          err?.response?.data
+            ?.message ||
+            "Failed to update offer."
+        );
+      }
+    };
+
+  /*
+   * DELETE
+   */
+  const handleDeleteOffer =
+    async (offer) => {
+      const confirmed =
+        window.confirm(
+          `Delete "${offer.title}"?`
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await deleteOffer(
+          offer.id
+        );
+
+        await loadOffers();
+      } catch (err) {
+        console.error(err);
+
+        alert(
+          err?.response?.data
+            ?.message ||
+            "Failed to delete offer."
+        );
+      }
+    };
+
+  const formatDate = (
+    dateValue
+  ) => {
+    if (!dateValue) {
+      return "-";
+    }
 
     return new Date(
       `${dateValue}T00:00:00`
-    ).toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    ).toLocaleDateString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    );
   };
 
   return (
@@ -147,6 +286,7 @@ export default function Offers() {
         Offers Management
       </Typography>
 
+      {/* ADD OFFER */}
       <Paper
         sx={{
           p: 3,
@@ -157,17 +297,21 @@ export default function Offers() {
         <Button
           variant="contained"
           size="large"
-          onClick={handleOpenDialog}
+          onClick={
+            handleOpenDialog
+          }
         >
           Add New Offer
         </Button>
       </Paper>
 
+      {/* LOADING */}
       {loading && (
         <Box
           sx={{
             display: "flex",
-            justifyContent: "center",
+            justifyContent:
+              "center",
             py: 4,
           }}
         >
@@ -175,6 +319,7 @@ export default function Offers() {
         </Box>
       )}
 
+      {/* ERROR */}
       {error && (
         <Alert
           severity="error"
@@ -186,6 +331,7 @@ export default function Offers() {
         </Alert>
       )}
 
+      {/* EMPTY */}
       {!loading &&
         offers.length === 0 && (
           <Paper
@@ -197,11 +343,13 @@ export default function Offers() {
             <Typography
               color="text.secondary"
             >
-              No offers have been created yet.
+              No offers have been
+              created yet.
             </Typography>
           </Paper>
         )}
 
+      {/* OFFER LIST */}
       {!loading &&
         offers.map((offer) => (
           <Paper
@@ -236,18 +384,23 @@ export default function Offers() {
                 mb: 0.5,
               }}
             >
-              {formatDate(offer.startDate)}
+              {formatDate(
+                offer.startDate
+              )}
               {" → "}
-              {formatDate(offer.endDate)}
+              {formatDate(
+                offer.endDate
+              )}
             </Typography>
 
             <Typography
               variant="body2"
               fontWeight={700}
               sx={{
-                color: offer.isActive
-                  ? "success.main"
-                  : "text.secondary",
+                color:
+                  offer.isActive
+                    ? "success.main"
+                    : "text.secondary",
               }}
             >
               Status:{" "}
@@ -255,17 +408,72 @@ export default function Offers() {
                 ? "Active"
                 : "Inactive"}
             </Typography>
+
+            {/* ACTION BUTTONS */}
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                mt: 2,
+                flexWrap: "wrap",
+                gap: 1,
+              }}
+            >
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() =>
+                  handleEditOffer(
+                    offer
+                  )
+                }
+              >
+                Edit
+              </Button>
+
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() =>
+                  handleToggleStatus(
+                    offer
+                  )
+                }
+              >
+                {offer.isActive
+                  ? "Deactivate"
+                  : "Activate"}
+              </Button>
+
+              <Button
+                color="error"
+                variant="outlined"
+                size="small"
+                onClick={() =>
+                  handleDeleteOffer(
+                    offer
+                  )
+                }
+              >
+                Delete Offer
+              </Button>
+            </Stack>
           </Paper>
         ))}
 
+      {/* ADD / EDIT DIALOG */}
       <Dialog
         open={open}
-        onClose={handleCloseDialog}
+        onClose={
+          handleCloseDialog
+        }
         fullWidth
         maxWidth="sm"
       >
         <DialogTitle>
-          Add New Offer
+          {editingOffer
+            ? "Edit Offer"
+            : "Add New Offer"}
         </DialogTitle>
 
         <DialogContent>
@@ -273,11 +481,15 @@ export default function Offers() {
             label="Offer Title"
             fullWidth
             margin="normal"
-            value={formData.title}
+            value={
+              formData.title
+            }
             onChange={(event) =>
               setFormData({
                 ...formData,
-                title: event.target.value,
+                title:
+                  event.target
+                    .value,
               })
             }
           />
@@ -288,12 +500,15 @@ export default function Offers() {
             multiline
             rows={3}
             margin="normal"
-            value={formData.description}
+            value={
+              formData.description
+            }
             onChange={(event) =>
               setFormData({
                 ...formData,
                 description:
-                  event.target.value,
+                  event.target
+                    .value,
               })
             }
           />
@@ -303,12 +518,15 @@ export default function Offers() {
             type="date"
             fullWidth
             margin="normal"
-            value={formData.startDate}
+            value={
+              formData.startDate
+            }
             onChange={(event) =>
               setFormData({
                 ...formData,
                 startDate:
-                  event.target.value,
+                  event.target
+                    .value,
               })
             }
             slotProps={{
@@ -323,12 +541,15 @@ export default function Offers() {
             type="date"
             fullWidth
             margin="normal"
-            value={formData.endDate}
+            value={
+              formData.endDate
+            }
             onChange={(event) =>
               setFormData({
                 ...formData,
                 endDate:
-                  event.target.value,
+                  event.target
+                    .value,
               })
             }
             slotProps={{
@@ -346,7 +567,9 @@ export default function Offers() {
           }}
         >
           <Button
-            onClick={handleCloseDialog}
+            onClick={
+              handleCloseDialog
+            }
             disabled={saving}
           >
             Cancel
@@ -354,11 +577,15 @@ export default function Offers() {
 
           <Button
             variant="contained"
-            onClick={handleSaveOffer}
+            onClick={
+              handleSaveOffer
+            }
             disabled={saving}
           >
             {saving
               ? "Saving..."
+              : editingOffer
+              ? "Update Offer"
               : "Save Offer"}
           </Button>
         </DialogActions>
