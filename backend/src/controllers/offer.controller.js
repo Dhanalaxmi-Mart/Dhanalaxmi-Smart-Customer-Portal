@@ -1,4 +1,5 @@
 const prisma = require("../lib/prisma");
+
 exports.getOffers = async (req, res) => {
   try {
     const offers = await prisma.offer.findMany({
@@ -24,10 +25,13 @@ exports.createOffer = async (req, res) => {
     const {
       title,
       description,
-      imageUrl,
       startDate,
       endDate,
     } = req.body;
+
+    const imageUrl = req.file
+      ? `/uploads/offers/${req.file.filename}`
+      : null;
 
     const offer = await prisma.offer.create({
       data: {
@@ -44,6 +48,11 @@ exports.createOffer = async (req, res) => {
       offer,
     });
   } catch (error) {
+    console.error(
+      "Create offer error:",
+      error
+    );
+
     res.status(500).json({
       success: false,
       message: error.message,
@@ -56,7 +65,9 @@ exports.updateOffer = async (req, res) => {
     const { id } = req.params;
 
     const offer = await prisma.offer.update({
-      where: { id },
+      where: {
+        id,
+      },
       data: req.body,
     });
 
@@ -77,12 +88,15 @@ exports.deleteOffer = async (req, res) => {
     const { id } = req.params;
 
     await prisma.offer.delete({
-      where: { id },
+      where: {
+        id,
+      },
     });
 
     res.json({
       success: true,
-      message: "Offer deleted successfully",
+      message:
+        "Offer deleted successfully",
     });
   } catch (error) {
     res.status(500).json({
@@ -92,26 +106,30 @@ exports.deleteOffer = async (req, res) => {
   }
 };
 
-exports.getPublicOffers = async (req, res) => {
+exports.getPublicOffers = async (
+  req,
+  res
+) => {
   try {
     const today = new Date()
       .toISOString()
       .split("T")[0];
 
-    const offers = await prisma.offer.findMany({
-      where: {
-        isActive: true,
-        startDate: {
-          lte: today,
+    const offers =
+      await prisma.offer.findMany({
+        where: {
+          isActive: true,
+          startDate: {
+            lte: today,
+          },
+          endDate: {
+            gte: today,
+          },
         },
-        endDate: {
-          gte: today,
+        orderBy: {
+          createdAt: "desc",
         },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+      });
 
     res.json({
       success: true,

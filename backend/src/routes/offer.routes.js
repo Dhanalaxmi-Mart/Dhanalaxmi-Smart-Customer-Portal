@@ -1,3 +1,4 @@
+const upload = require("../middleware/upload.middleware");
 const express = require("express");
 
 const {
@@ -15,7 +16,11 @@ router.get("/public", getPublicOffers);
 
 /* Admin */
 router.get("/", getOffers);
-router.post("/", createOffer);
+router.post(
+  "/",
+  upload.single("image"),
+  createOffer
+);
 router.put("/:id", updateOffer);
 router.delete("/:id", deleteOffer);
 

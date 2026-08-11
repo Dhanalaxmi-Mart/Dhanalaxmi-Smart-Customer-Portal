@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-
+const path = require("path");
 const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
 const customerRoutes = require("./routes/customer.routes");
@@ -36,7 +36,12 @@ app.use(
 
 /* Body Parser */
 app.use(express.json());
-
+app.use(
+  "/uploads",
+  express.static(
+    path.join(__dirname, "../uploads")
+  )
+);
 /* Health Check */
 app.get("/", (req, res) => {
   res.json({
