@@ -1,5 +1,8 @@
-const upload = require("../middleware/upload.middleware");
 const express = require("express");
+
+const upload = require(
+  "../middleware/upload.middleware"
+);
 
 const {
   getOffers,
@@ -12,16 +15,32 @@ const {
 const router = express.Router();
 
 /* Public */
-router.get("/public", getPublicOffers);
+router.get(
+  "/public",
+  getPublicOffers
+);
 
 /* Admin */
-router.get("/", getOffers);
+router.get(
+  "/",
+  getOffers
+);
+
 router.post(
   "/",
   upload.single("image"),
   createOffer
 );
-router.put("/:id", updateOffer);
-router.delete("/:id", deleteOffer);
+
+router.put(
+  "/:id",
+  upload.single("image"),
+  updateOffer
+);
+
+router.delete(
+  "/:id",
+  deleteOffer
+);
 
 module.exports = router;

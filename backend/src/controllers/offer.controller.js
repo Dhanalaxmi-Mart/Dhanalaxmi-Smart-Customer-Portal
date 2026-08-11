@@ -13,6 +13,11 @@ exports.getOffers = async (req, res) => {
       offers,
     });
   } catch (error) {
+    console.error(
+      "Get offers error:",
+      error
+    );
+
     res.status(500).json({
       success: false,
       message: error.message,
@@ -64,18 +69,82 @@ exports.updateOffer = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const offer = await prisma.offer.update({
-      where: {
-        id,
-      },
-      data: req.body,
-    });
+    const existingOffer =
+      await prisma.offer.findUnique({
+        where: {
+          id,
+        },
+      });
+
+    if (!existingOffer) {
+      return res.status(404).json({
+        success: false,
+        message: "Offer not found",
+      });
+    }
+
+    const {
+      title,
+      description,
+      startDate,
+      endDate,
+      isActive,
+    } = req.body;
+
+    const data = {};
+
+    if (title !== undefined) {
+      data.title = title;
+    }
+
+    if (description !== undefined) {
+      data.description = description;
+    }
+
+    if (startDate !== undefined) {
+      data.startDate = startDate;
+    }
+
+    if (endDate !== undefined) {
+      data.endDate = endDate;
+    }
+
+    if (isActive !== undefined) {
+      data.isActive =
+        isActive === true ||
+        isActive === "true";
+    }
+
+    /*
+     * If a new image was uploaded,
+     * replace imageUrl.
+     *
+     * If no image was uploaded,
+     * existing imageUrl remains unchanged.
+     */
+    if (req.file) {
+      data.imageUrl =
+        `/uploads/offers/${req.file.filename}`;
+    }
+
+    const offer =
+      await prisma.offer.update({
+        where: {
+          id,
+        },
+        data,
+      });
 
     res.json({
       success: true,
       offer,
     });
   } catch (error) {
+    console.error(
+      "Update offer error:",
+      error
+    );
+
     res.status(500).json({
       success: false,
       message: error.message,
@@ -86,6 +155,20 @@ exports.updateOffer = async (req, res) => {
 exports.deleteOffer = async (req, res) => {
   try {
     const { id } = req.params;
+
+    const existingOffer =
+      await prisma.offer.findUnique({
+        where: {
+          id,
+        },
+      });
+
+    if (!existingOffer) {
+      return res.status(404).json({
+        success: false,
+        message: "Offer not found",
+      });
+    }
 
     await prisma.offer.delete({
       where: {
@@ -99,6 +182,11 @@ exports.deleteOffer = async (req, res) => {
         "Offer deleted successfully",
     });
   } catch (error) {
+    console.error(
+      "Delete offer error:",
+      error
+    );
+
     res.status(500).json({
       success: false,
       message: error.message,
@@ -119,13 +207,16 @@ exports.getPublicOffers = async (
       await prisma.offer.findMany({
         where: {
           isActive: true,
+
           startDate: {
             lte: today,
           },
+
           endDate: {
             gte: today,
           },
         },
+
         orderBy: {
           createdAt: "desc",
         },
@@ -136,6 +227,11 @@ exports.getPublicOffers = async (
       offers,
     });
   } catch (error) {
+    console.error(
+      "Public offers error:",
+      error
+    );
+
     res.status(500).json({
       success: false,
       message: error.message,

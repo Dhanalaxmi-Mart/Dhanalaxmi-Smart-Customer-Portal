@@ -30,10 +30,12 @@ export default function Offers() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  /*
-   * null = creating new offer
-   * offer object = editing existing offer
-   */
+  const [selectedImage, setSelectedImage] =
+    useState(null);
+
+  const [imagePreview, setImagePreview] =
+    useState("");
+
   const [editingOffer, setEditingOffer] =
     useState(null);
 
@@ -69,9 +71,6 @@ export default function Offers() {
     loadOffers();
   }, []);
 
-  /*
-   * ADD NEW OFFER
-   */
   const handleOpenDialog = () => {
     setEditingOffer(null);
 
@@ -82,12 +81,12 @@ export default function Offers() {
       endDate: "",
     });
 
+    setSelectedImage(null);
+    setImagePreview("");
+
     setOpen(true);
   };
 
-  /*
-   * EDIT EXISTING OFFER
-   */
   const handleEditOffer = (offer) => {
     setEditingOffer(offer);
 
@@ -101,6 +100,16 @@ export default function Offers() {
         offer.endDate || "",
     });
 
+    setSelectedImage(null);
+
+    if (offer.imageUrl) {
+      setImagePreview(
+        `http://localhost:5000${offer.imageUrl}`
+      );
+    } else {
+      setImagePreview("");
+    }
+
     setOpen(true);
   };
 
@@ -111,11 +120,10 @@ export default function Offers() {
 
     setOpen(false);
     setEditingOffer(null);
+    setSelectedImage(null);
+    setImagePreview("");
   };
 
-  /*
-   * CREATE OR UPDATE
-   */
   const handleSaveOffer = async () => {
     if (
       !formData.title.trim() ||
@@ -142,40 +150,81 @@ export default function Offers() {
     try {
       setSaving(true);
 
-      const data = {
-        title:
-          formData.title.trim(),
-
-        description:
-          formData.description.trim(),
-
-        startDate:
-          formData.startDate,
-
-        endDate:
-          formData.endDate,
-      };
-
       if (editingOffer) {
-        /*
-         * UPDATE EXISTING OFFER
-         */
+        const updateData =
+          new FormData();
+
+        updateData.append(
+          "title",
+          formData.title.trim()
+        );
+
+        updateData.append(
+          "description",
+          formData.description.trim()
+        );
+
+        updateData.append(
+          "startDate",
+          formData.startDate
+        );
+
+        updateData.append(
+          "endDate",
+          formData.endDate
+        );
+
+        if (selectedImage) {
+          updateData.append(
+            "image",
+            selectedImage
+          );
+        }
+
         await updateOffer(
           editingOffer.id,
-          data
+          updateData
         );
       } else {
-        /*
-         * CREATE NEW OFFER
-         */
-        await createOffer({
-          ...data,
-          imageUrl: null,
-        });
+        const uploadData =
+          new FormData();
+
+        uploadData.append(
+          "title",
+          formData.title.trim()
+        );
+
+        uploadData.append(
+          "description",
+          formData.description.trim()
+        );
+
+        uploadData.append(
+          "startDate",
+          formData.startDate
+        );
+
+        uploadData.append(
+          "endDate",
+          formData.endDate
+        );
+
+        if (selectedImage) {
+          uploadData.append(
+            "image",
+            selectedImage
+          );
+        }
+
+        await createOffer(
+          uploadData
+        );
       }
 
       setOpen(false);
       setEditingOffer(null);
+      setSelectedImage(null);
+      setImagePreview("");
 
       setFormData({
         title: "",
@@ -189,8 +238,7 @@ export default function Offers() {
       console.error(err);
 
       alert(
-        err?.response?.data
-          ?.message ||
+        err?.response?.data?.message ||
           "Failed to save offer."
       );
     } finally {
@@ -198,9 +246,6 @@ export default function Offers() {
     }
   };
 
-  /*
-   * ACTIVE / INACTIVE
-   */
   const handleToggleStatus =
     async (offer) => {
       try {
@@ -224,9 +269,6 @@ export default function Offers() {
       }
     };
 
-  /*
-   * DELETE
-   */
   const handleDeleteOffer =
     async (offer) => {
       const confirmed =
@@ -286,7 +328,6 @@ export default function Offers() {
         Offers Management
       </Typography>
 
-      {/* ADD OFFER */}
       <Paper
         sx={{
           p: 3,
@@ -305,7 +346,6 @@ export default function Offers() {
         </Button>
       </Paper>
 
-      {/* LOADING */}
       {loading && (
         <Box
           sx={{
@@ -319,7 +359,6 @@ export default function Offers() {
         </Box>
       )}
 
-      {/* ERROR */}
       {error && (
         <Alert
           severity="error"
@@ -331,7 +370,6 @@ export default function Offers() {
         </Alert>
       )}
 
-      {/* EMPTY */}
       {!loading &&
         offers.length === 0 && (
           <Paper
@@ -349,7 +387,6 @@ export default function Offers() {
           </Paper>
         )}
 
-      {/* OFFER LIST */}
       {!loading &&
         offers.map((offer) => (
           <Paper
@@ -360,6 +397,21 @@ export default function Offers() {
               borderRadius: 3,
             }}
           >
+            {offer.imageUrl && (
+              <Box
+                component="img"
+                src={`http://localhost:5000${offer.imageUrl}`}
+                alt={offer.title}
+                sx={{
+                  width: "100%",
+                  maxHeight: 220,
+                  objectFit: "cover",
+                  borderRadius: 2,
+                  mb: 2,
+                }}
+              />
+            )}
+
             <Typography
               variant="h6"
               fontWeight={700}
@@ -409,7 +461,6 @@ export default function Offers() {
                 : "Inactive"}
             </Typography>
 
-            {/* ACTION BUTTONS */}
             <Stack
               direction="row"
               spacing={1}
@@ -461,7 +512,6 @@ export default function Offers() {
           </Paper>
         ))}
 
-      {/* ADD / EDIT DIALOG */}
       <Dialog
         open={open}
         onClose={
@@ -558,6 +608,82 @@ export default function Offers() {
               },
             }}
           />
+
+          <Box
+            sx={{
+              mt: 2,
+            }}
+          >
+            <Button
+              variant="outlined"
+              component="label"
+            >
+              {editingOffer
+                ? "Replace Offer Banner"
+                : "Choose Offer Banner"}
+
+              <input
+                type="file"
+                hidden
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(event) => {
+                  const file =
+                    event.target
+                      .files?.[0];
+
+                  if (!file) {
+                    return;
+                  }
+
+                  setSelectedImage(
+                    file
+                  );
+
+                  const previewUrl =
+                    URL.createObjectURL(
+                      file
+                    );
+
+                  setImagePreview(
+                    previewUrl
+                  );
+                }}
+              />
+            </Button>
+
+            {selectedImage && (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  mt: 1,
+                }}
+              >
+                Selected:{" "}
+                {selectedImage.name}
+              </Typography>
+            )}
+
+            {imagePreview && (
+              <Box
+                component="img"
+                src={imagePreview}
+                alt="Offer banner preview"
+                sx={{
+                  width: "100%",
+                  maxHeight: 260,
+                  objectFit:
+                    "contain",
+                  mt: 2,
+                  borderRadius: 2,
+                  border:
+                    "1px solid",
+                  borderColor:
+                    "divider",
+                }}
+              />
+            )}
+          </Box>
         </DialogContent>
 
         <DialogActions
