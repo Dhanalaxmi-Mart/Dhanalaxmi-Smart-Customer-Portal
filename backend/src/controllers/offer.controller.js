@@ -1,12 +1,56 @@
 const prisma = require("../lib/prisma");
+const fs = require("fs");
+const path = require("path");
+
+/*
+ * Safely delete an offer image.
+ * imageUrl example:
+ * /uploads/offers/123456-banner.jpg
+ */
+const deleteOfferImage = (imageUrl) => {
+  try {
+    if (!imageUrl) {
+      return;
+    }
+
+    const fileName = path.basename(
+      imageUrl
+    );
+
+    const filePath = path.resolve(
+      __dirname,
+      "../../uploads/offers",
+      fileName
+    );
+
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+
+      console.log(
+        "Deleted old offer image:",
+        fileName
+      );
+    }
+  } catch (error) {
+    /*
+     * Image cleanup should not crash
+     * the offer API.
+     */
+    console.error(
+      "Offer image cleanup error:",
+      error
+    );
+  }
+};
 
 exports.getOffers = async (req, res) => {
   try {
-    const offers = await prisma.offer.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    const offers =
+      await prisma.offer.findMany({
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
 
     res.json({
       success: true,
@@ -25,7 +69,10 @@ exports.getOffers = async (req, res) => {
   }
 };
 
-exports.createOffer = async (req, res) => {
+exports.createOffer = async (
+  req,
+  res
+) => {
   try {
     const {
       title,
@@ -38,15 +85,16 @@ exports.createOffer = async (req, res) => {
       ? `/uploads/offers/${req.file.filename}`
       : null;
 
-    const offer = await prisma.offer.create({
-      data: {
-        title,
-        description,
-        imageUrl,
-        startDate,
-        endDate,
-      },
-    });
+    const offer =
+      await prisma.offer.create({
+        data: {
+          title,
+          description,
+          imageUrl,
+          startDate,
+          endDate,
+        },
+      });
 
     res.status(201).json({
       success: true,
@@ -58,6 +106,17 @@ exports.createOffer = async (req, res) => {
       error
     );
 
+    /*
+     * If Multer already saved an image
+     * but Prisma failed, remove the
+     * orphaned uploaded file.
+     */
+    if (req.file) {
+      deleteOfferImage(
+        `/uploads/offers/${req.file.filename}`
+      );
+    }
+
     res.status(500).json({
       success: false,
       message: error.message,
@@ -65,7 +124,10 @@ exports.createOffer = async (req, res) => {
   }
 };
 
-exports.updateOffer = async (req, res) => {
+exports.updateOffer = async (
+  req,
+  res
+) => {
   try {
     const { id } = req.params;
 
@@ -77,6 +139,17 @@ exports.updateOffer = async (req, res) => {
       });
 
     if (!existingOffer) {
+      /*
+       * Multer runs before the controller.
+       * If an image was uploaded for an
+       * invalid offer ID, remove it.
+       */
+      if (req.file) {
+        deleteOfferImage(
+          `/uploads/offers/${req.file.filename}`
+        );
+      }
+
       return res.status(404).json({
         success: false,
         message: "Offer not found",
@@ -98,11 +171,13 @@ exports.updateOffer = async (req, res) => {
     }
 
     if (description !== undefined) {
-      data.description = description;
+      data.description =
+        description;
     }
 
     if (startDate !== undefined) {
-      data.startDate = startDate;
+      data.startDate =
+        startDate;
     }
 
     if (endDate !== undefined) {
@@ -116,24 +191,54 @@ exports.updateOffer = async (req, res) => {
     }
 
     /*
-     * If a new image was uploaded,
-     * replace imageUrl.
-     *
-     * If no image was uploaded,
-     * existing imageUrl remains unchanged.
+     * New banner selected:
+     * point database to the new image.
      */
     if (req.file) {
       data.imageUrl =
         `/uploads/offers/${req.file.filename}`;
     }
 
-    const offer =
-      await prisma.offer.update({
-        where: {
-          id,
-        },
-        data,
-      });
+    let offer;
+
+    try {
+      offer =
+        await prisma.offer.update({
+          where: {
+            id,
+          },
+          data,
+        });
+    } catch (error) {
+      /*
+       * Database update failed after
+       * Multer saved the new banner.
+       * Delete the newly uploaded file.
+       */
+      if (req.file) {
+        deleteOfferImage(
+          `/uploads/offers/${req.file.filename}`
+        );
+      }
+
+      throw error;
+    }
+
+    /*
+     * Database update succeeded.
+     * Only now is it safe to remove
+     * the previous banner.
+     */
+    if (
+      req.file &&
+      existingOffer.imageUrl &&
+      existingOffer.imageUrl !==
+        offer.imageUrl
+    ) {
+      deleteOfferImage(
+        existingOffer.imageUrl
+      );
+    }
 
     res.json({
       success: true,
@@ -152,7 +257,10 @@ exports.updateOffer = async (req, res) => {
   }
 };
 
-exports.deleteOffer = async (req, res) => {
+exports.deleteOffer = async (
+  req,
+  res
+) => {
   try {
     const { id } = req.params;
 
@@ -175,6 +283,17 @@ exports.deleteOffer = async (req, res) => {
         id,
       },
     });
+
+    /*
+     * Database deletion succeeded.
+     * The associated banner is no
+     * longer required.
+     */
+    if (existingOffer.imageUrl) {
+      deleteOfferImage(
+        existingOffer.imageUrl
+      );
+    }
 
     res.json({
       success: true,
