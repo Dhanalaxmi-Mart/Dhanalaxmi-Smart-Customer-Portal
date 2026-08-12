@@ -27,3 +27,5 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+# Runtime uploaded offer images
+backend/uploads/offers/*

@@ -523,6 +523,21 @@ export default function CustomerPortal() {
     textAlign: "center",
   }}
 >
+{offer.imageUrl && (
+  <Box
+    component="img"
+    src={`http://localhost:5000${offer.imageUrl}`}
+    alt={offer.title}
+    sx={{
+      width: "100%",
+      maxHeight: 260,
+      objectFit: "cover",
+      borderRadius: 2,
+      mb: 2,
+      display: "block",
+    }}
+  />
+)}
                           <Typography
                             fontWeight={700}
                           >
